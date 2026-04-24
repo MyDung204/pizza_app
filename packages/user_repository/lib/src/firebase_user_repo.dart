@@ -2,8 +2,6 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
-// import 'package:user_repository/src/models/user.dart';
-// import 'package:user_repository/src/user_repo.dart';
 import 'package:user_repository/user_repository.dart';
 
 class FirebaseUserRepo implements UserRepository {
@@ -12,51 +10,69 @@ class FirebaseUserRepo implements UserRepository {
 
   FirebaseUserRepo({
     FirebaseAuth? firebaseAuth,
-
-
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+
   @override
   Stream<MyUser?> get user {
     return _firebaseAuth.authStateChanges().flatMap((firebaseUser) async* {
-      if(firebaseUser == null){
+      if (firebaseUser == null) {
         yield MyUser.empty;
       } else {
-        yield await usersCollection
-            .doc(firebaseUser.uid)
-            .get()
-            .then((value) => MyUser.fromEntity(MyUserEntity.fromDocument(value.data()!
-        )));
+        try {
+          // THAY ĐỔI QUAN TRỌNG: Tìm kiếm bằng Query thay vì .doc()
+          // Cách này sẽ tìm Document có field 'userId' khớp với UID đăng nhập
+          final querySnapshot = await usersCollection
+              .where('userId', isEqualTo: firebaseUser.uid)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            // Nếu tìm thấy Document phù hợp trong Database của bạn
+            final data = querySnapshot.docs.first.data();
+            yield MyUser.fromEntity(MyUserEntity.fromDocument(data));
+          } else {
+            // LOẠI BỎ DẤU !: Nếu không thấy Document, tạo User tạm thời
+            // Cần đầy đủ tham số userId, email, name, và hasActiveCart
+            yield MyUser(
+              userId: firebaseUser.uid,
+              email: firebaseUser.email ?? '',
+              name: '',
+              hasActiveCart: false,
+            );
+          }
+        } catch (e) {
+          log("Lỗi luồng User: ${e.toString()}");
+          yield MyUser.empty;
+        }
       }
     });
   }
 
   @override
   Future<void> signIn(String email, String password) async {
-    try{
+    try {
       await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
     } catch (e) {
       log(e.toString());
       rethrow;
     }
-
   }
 
   @override
   Future<MyUser> signUp(MyUser myUser, String password) async {
-    try{
+    try {
       UserCredential user = await _firebaseAuth.createUserWithEmailAndPassword(
           email: myUser.email,
           password: password
       );
       myUser.userId = user.user!.uid;
+      // Tự động lưu dữ liệu vào Firestore để các lần sau ID luôn khớp
+      await setUserData(myUser);
       return myUser;
     } catch (e) {
       log(e.toString());
       rethrow;
     }
   }
-
-
 
   @override
   Future<void> logOut() async {
@@ -65,17 +81,14 @@ class FirebaseUserRepo implements UserRepository {
 
   @override
   Future<void> setUserData(MyUser myUser) async {
-    try{
+    try {
+      // Khi lưu, ép Document ID phải trùng với userId để quản lý dễ dàng hơn
       await usersCollection
-        .doc(myUser.userId)
-        .set(myUser.toEntity().toDocument());
+          .doc(myUser.userId)
+          .set(myUser.toEntity().toDocument());
     } catch (e) {
       log(e.toString());
       rethrow;
     }
   }
-
-
-
-
 }

@@ -17,6 +17,7 @@ class SignInRequired extends SignInEvent {
 }
 
 class SignOutProcess extends SignInEvent {
+  const SignOutProcess();
   @override
   List<Object> get props => [];
 }
