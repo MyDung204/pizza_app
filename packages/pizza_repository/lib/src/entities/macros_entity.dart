@@ -1,19 +1,19 @@
 class MacrosEntity {
   int calories;
-  int protein;
+  int proteins;
   int fat;
   int carbs;
 
   MacrosEntity({
     required this.calories,
-    required this.protein,
+    required this.proteins,
     required this.fat,
     required this.carbs,
   });
   Map<String, Object?> toDocument() {
     return {
       'calories': calories,
-      'protein': protein,
+      'proteins': proteins,
       'fat': fat,
       'carbs': carbs,
     };
@@ -21,7 +21,7 @@ class MacrosEntity {
   static MacrosEntity fromDocument(Map<String, dynamic> doc) {
     return MacrosEntity(
       calories: doc['calories'],
-      protein: doc['protein'],
+      proteins: doc['proteins'],
       fat: doc['fat'],
       carbs: doc['carbs'],
     );
